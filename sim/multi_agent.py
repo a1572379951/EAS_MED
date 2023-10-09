@@ -3,28 +3,34 @@ import os, time
 import logging
 import numpy as np
 import multiprocessing as mp
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="0,1"
+
 import tensorflow as tf
+
+physical_devices = tf.config.list_physical_devices('GPU')
+tf.config.set_visible_devices(physical_devices[1], 'GPU')
+tf.config.set_visible_devices(physical_devices[1], 'GPU')
+tf.config.experimental.set_memory_growth(physical_devices[1], True)
+tf.config.experimental.set_memory_growth(physical_devices[1], True)
+tf.get_logger().setLevel('ERROR')
+tf.compat.v1.disable_resource_variables()
 import env
 import a3c
 import load_trace
-
+import global_variable
 
 S_INFO = 6  # bit_rate, buffer_size, next_chunk_size, bandwidth_measurement(throughput and time), chunk_til_video_end
 S_LEN = 8  # take how many frames in the past
-A_DIM = 6
+A_DIM = 8
 ACTOR_LR_RATE = 0.0001
 CRITIC_LR_RATE = 0.001
 NUM_AGENTS = 16
-TRAIN_SEQ_LEN = 100  # take as a train batch
+TRAIN_SEQ_LEN = 150  # take as a train batch
 MODEL_SAVE_INTERVAL = 100
-VIDEO_BIT_RATE = [300,750,1200,1850,2850,4300]  # Kbps
-HD_REWARD = [1, 2, 3, 12, 15, 20]
+VIDEO_BIT_RATE = [400, 1000, 2000, 3500, 5300, 7500, 9500, 12000]
 BUFFER_NORM_FACTOR = 10.0
-CHUNK_TIL_VIDEO_END_CAP = 48.0
+CHUNK_TIL_VIDEO_END_CAP = 150.0
 M_IN_K = 1000.0
-REBUF_PENALTY = 4.3  # 1 sec rebuffering -> 3 Mbps
+REBUF_PENALTY = 6.  # 1 sec rebuffering -> 3 Mbps
 SMOOTH_PENALTY = 1
 DEFAULT_QUALITY = 1  # default video quality without agent
 RANDOM_SEED = 42
@@ -32,9 +38,11 @@ RAND_RANGE = 1000
 SUMMARY_DIR = './results'
 LOG_FILE = './results/log'
 TEST_LOG_FOLDER = './test_results/'
-TRAIN_TRACES = './cooked_traces/'
-# NN_MODEL = './results/pretrain_linear_reward.ckpt'
+TRAIN_TRACES = './NewFile-HighDensity-CUHK-train/'
+#NN_MODEL = './results/nn_model_ep_9500.ckpt'
+#NN_MODEL = '../great_model/nn_model_ep_5800.ckpt'
 NN_MODEL = None
+
 
 def testing(epoch, nn_model, log_file):
     # clean up the test results folder
@@ -43,7 +51,7 @@ def testing(epoch, nn_model, log_file):
         os.makedirs(TEST_LOG_FOLDER)
     # run test script
     os.system('python rl_test.py ' + nn_model)
-    
+
     # append test performance to the log
     rewards, entropies = [], []
     test_log_files = os.listdir(TEST_LOG_FOLDER)
@@ -81,7 +89,6 @@ def testing(epoch, nn_model, log_file):
 
 
 def central_agent(net_params_queues, exp_queues):
-
     assert len(net_params_queues) == NUM_AGENTS
     assert len(exp_queues) == NUM_AGENTS
 
@@ -102,8 +109,8 @@ def central_agent(net_params_queues, exp_queues):
 
         sess.run(tf.compat.v1.global_variables_initializer())
         curr_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        TRAIN_SUMMARY_DIR = './results/'+curr_time+'/train'
-        TEST_SUMMARY_DIR = './results/'+curr_time+'/test'
+        TRAIN_SUMMARY_DIR = './results/' + curr_time + '/train'
+        TEST_SUMMARY_DIR = './results/' + curr_time + '/test'
         writer = tf.compat.v1.summary.FileWriter(TRAIN_SUMMARY_DIR, sess.graph)  # training monitor
         test_writer = tf.compat.v1.summary.FileWriter(TEST_SUMMARY_DIR, sess.graph)  # training monitor
         saver = tf.compat.v1.train.Saver()  # save neural net parameters
@@ -138,7 +145,7 @@ def central_agent(net_params_queues, exp_queues):
             total_reward = 0.0
             total_td_loss = 0.0
             total_entropy = 0.0
-            total_agents = 0.0 
+            total_agents = 0.0
 
             # assemble experiences from the agents
             actor_gradient_batch = []
@@ -172,43 +179,19 @@ def central_agent(net_params_queues, exp_queues):
 
             # log training information
             epoch += 1
-            avg_reward = total_reward  / total_agents
-            avg_td_loss = total_td_loss / total_batch_len
-            avg_entropy = total_entropy / total_batch_len
-
-            logging.info('Epoch: ' + str(epoch) +
-                         ' TD_loss: ' + str(avg_td_loss) +
-                         ' Avg_reward: ' + str(avg_reward) +
-                         ' Avg_entropy: ' + str(avg_entropy))
-
-            #Training summary
-            summary_str = sess.run(summary_ops, feed_dict={
-                summary_vars[0]: avg_td_loss,
-                summary_vars[1]: avg_reward,
-                summary_vars[2]: avg_entropy
-            })
-            writer.add_summary(summary_str, epoch)
-            writer.flush()
-            # Testing summary
-            summary_str = sess.run(summary_ops, feed_dict={
-                summary_vars[0]: test_avg_td_loss,
-                summary_vars[1]: test_avg_reward,
-                summary_vars[2]: test_avg_entropy
-            })
-
-            test_writer.add_summary(summary_str, epoch)
-            test_writer.flush()
+            print(epoch)
+            if epoch > 9000:
+                break
 
             if epoch % MODEL_SAVE_INTERVAL == 0:
                 # Save the neural net parameters to disk.
                 save_path = saver.save(sess, SUMMARY_DIR + "/nn_model_ep_" + str(epoch) + ".ckpt")
                 logging.info("Model saved in file: " + save_path)
-                test_avg_reward, test_avg_entropy = testing(epoch, SUMMARY_DIR + "/nn_model_ep_" + str(epoch) + ".ckpt", test_log_file)
-
+                if epoch % 200 == 0 :
+                    test_avg_reward, test_avg_entropy = testing(epoch, SUMMARY_DIR + "/nn_model_ep_" + str(epoch) + ".ckpt", test_log_file)
 
 
 def agent(agent_id, all_cooked_time, all_cooked_bw, net_params_queue, exp_queue):
-
     net_env = env.Environment(all_cooked_time=all_cooked_time,
                               all_cooked_bw=all_cooked_bw,
                               random_seed=agent_id)
@@ -243,8 +226,8 @@ def agent(agent_id, all_cooked_time, all_cooked_bw, net_params_queue, exp_queue)
             # the action is from the last decision
             # this is to make the framework similar to the real
             delay, sleep_time, buffer_size, rebuf, \
-            video_chunk_size, next_video_chunk_sizes, \
-            end_of_video, video_chunk_remain = \
+                video_chunk_size, next_video_chunk_sizes, \
+                end_of_video, video_chunk_remain = \
                 net_env.get_video_chunk(bit_rate)
 
             time_stamp += delay  # in ms
@@ -300,15 +283,6 @@ def agent(agent_id, all_cooked_time, all_cooked_bw, net_params_queue, exp_queue)
 
             entropy_record.append(a3c.compute_entropy(action_prob[0]))
 
-            # log time_stamp, bit_rate, buffer_size, reward
-            log_file.write(str(time_stamp) + '\t' +
-                           str(VIDEO_BIT_RATE[bit_rate]) + '\t' +
-                           str(buffer_size) + '\t' +
-                           str(rebuf) + '\t' +
-                           str(video_chunk_size) + '\t' +
-                           str(delay) + '\t' +
-                           str(reward) + '\n')
-            log_file.flush()
 
             # report experience to the coordinator
             if len(r_batch) >= TRAIN_SEQ_LEN or end_of_video:
@@ -350,7 +324,6 @@ def agent(agent_id, all_cooked_time, all_cooked_bw, net_params_queue, exp_queue)
 
 
 def main():
-
     np.random.seed(RANDOM_SEED)
     assert len(VIDEO_BIT_RATE) == A_DIM
 

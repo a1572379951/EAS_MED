@@ -4,9 +4,10 @@ MILLISECONDS_IN_SECOND = 1000.0
 B_IN_MB = 1000000.0
 BITS_IN_BYTE = 8.0
 RANDOM_SEED = 42
-VIDEO_CHUNCK_LEN = 4000.0  # millisec, every time add this amount to buffer
-BITRATE_LEVELS = 6
-TOTAL_VIDEO_CHUNCK = 48
+VIDEO_CHUNCK_LEN = 2000.0  # millisec, every time add this amount to buffer
+BITRATE_LEVELS = 8
+VIDEO_BIT_RATE = [400, 1000, 2000, 3500, 5300, 7500, 9500, 12000]
+TOTAL_VIDEO_CHUNCK = 150
 BUFFER_THRESH = 60.0 * MILLISECONDS_IN_SECOND  # millisec, max buffer limit
 DRAIN_BUFFER_SLEEP_TIME = 500.0  # millisec
 PACKET_PAYLOAD_PORTION = 0.95
@@ -41,9 +42,8 @@ class Environment:
         self.video_size = {}  # in bytes
         for bitrate in range(BITRATE_LEVELS):
             self.video_size[bitrate] = []
-            with open(VIDEO_SIZE_FILE + str(bitrate)) as f:
-                for line in f:
-                    self.video_size[bitrate].append(int(line.split()[0]))
+            for line in range(TOTAL_VIDEO_CHUNCK):
+                self.video_size[bitrate].append(int(VIDEO_BIT_RATE[bitrate]*250))
 
     def get_video_chunk(self, quality):
 

@@ -1,35 +1,32 @@
 import os
 import sys
-os.environ['CUDA_VISIBLE_DEVICES']=''
 import numpy as np
 import tensorflow as tf
 import load_trace
 import a3c
 import fixed_env as env
 
-
 S_INFO = 6  # bit_rate, buffer_size, next_chunk_size, bandwidth_measurement(throughput and time), chunk_til_video_end
-S_LEN = 8  # take how many frames in the past
-A_DIM = 6
+S_LEN = 8  # (take how many frames in the past)
+A_DIM = 8
 ACTOR_LR_RATE = 0.0001
 CRITIC_LR_RATE = 0.001
-VIDEO_BIT_RATE = [300,750,1200,1850,2850,4300]  # Kbps
+VIDEO_BIT_RATE = [400, 1000, 2000, 3500, 5300, 7500, 9500, 12000]
 BUFFER_NORM_FACTOR = 10.0
-CHUNK_TIL_VIDEO_END_CAP = 48.0
+CHUNK_TIL_VIDEO_END_CAP = 150.0
 M_IN_K = 1000.0
-REBUF_PENALTY = 4.3  # 1 sec rebuffering -> 3 Mbps
+REBUF_PENALTY = 6.
 SMOOTH_PENALTY = 1
-DEFAULT_QUALITY = 1  # default video quality without agent
+DEFAULT_QUALITY = 1
 RANDOM_SEED = 42
 RAND_RANGE = 1000
 LOG_FILE = './test_results/log_sim_rl'
-TEST_TRACES = './cooked_test_traces/'
+TEST_TRACES = './NewFile-HighDensity-CUHK-test/'
 # log in format of time_stamp bit_rate buffer_size rebuffer_time chunk_size download_time reward
 NN_MODEL = sys.argv[1]
 
 
 def main():
-
     np.random.seed(RANDOM_SEED)
 
     assert len(VIDEO_BIT_RATE) == A_DIM
@@ -80,8 +77,8 @@ def main():
             # the action is from the last decision
             # this is to make the framework similar to the real
             delay, sleep_time, buffer_size, rebuf, \
-            video_chunk_size, next_video_chunk_sizes, \
-            end_of_video, video_chunk_remain = \
+                video_chunk_size, next_video_chunk_sizes, \
+                end_of_video, video_chunk_remain = \
                 net_env.get_video_chunk(bit_rate)
 
             time_stamp += delay  # in ms

@@ -2,41 +2,32 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-LOG_PATH = './results/log'
-PLOT_SAMPLES = 300
+LOG_PATH = './results/log_test'
+PLOT_SAMPLES = 100
 
 
-time_stamp = []
-bit_rates = []
-buffer_occupancies = []
-rebuffer_times = []
-rewards = []
+epoch = []
+reward_min = []
+reward_5per = []
+reward_mean = []
+reward_mid = []
+reward_95per=[]
+reward_max=[]
 
 with open(LOG_PATH, 'rb') as f:
     for line in f:
         parse = line.split()
-        time_stamp.append(float(parse[0]))
-        bit_rates.append(float(parse[1]))
-        buffer_occupancies.append(float(parse[2]))
-        rebuffer_times.append(float(parse[3]))
-        rewards.append(float(parse[4]))
+        epoch.append(float(parse[0]))
+        reward_min.append(float(parse[1]))
+        reward_5per.append(float(parse[2]))
+        reward_mean.append(float(parse[3]))
+        reward_mid.append(float(parse[4]))
+        reward_95per.append(float(parse[5]))
+        reward_max.append(float(parse[6]))
 
-f, (ax1, ax2, ax3, ax4) = plt.subplots(4, sharex=True)
 
-ax1.plot(time_stamp[-PLOT_SAMPLES:], rewards[-PLOT_SAMPLES:])
-ax1.set_title('Average reward: ' + str(np.mean(rewards[-PLOT_SAMPLES:])))
-ax1.set_ylabel('Reward')
 
-ax2.plot(time_stamp[-PLOT_SAMPLES:], bit_rates[-PLOT_SAMPLES:])
-ax2.set_ylabel('bit rate (Kpbs)')
 
-ax3.plot(time_stamp[-PLOT_SAMPLES:], buffer_occupancies[-PLOT_SAMPLES:])
-ax3.set_ylabel('buffer occupancy (sec)')
-
-ax4.plot(time_stamp[-PLOT_SAMPLES:], rebuffer_times[-PLOT_SAMPLES:])
-ax4.set_ylabel('rebuffer time (sec)')
-ax4.set_xlabel('Time (ms)')
-
-f.subplots_adjust(hspace=0)
-
+plt.plot(reward_mean)
+plt.title("Recent_r:  "+str(np.mean(reward_mean[-4:])))
 plt.show()

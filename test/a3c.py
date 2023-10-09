@@ -4,29 +4,27 @@ import tflearn
 
 
 GAMMA = 0.99
-A_DIM = 6
-ENTROPY_WEIGHT = 0.5
+A_DIM = 8
 ENTROPY_EPS = 1e-6
-S_INFO = 4
-
-
+EN_W = 0.5
 class ActorNetwork(object):
     """
     Input to the network is the state, output is the distribution
     of all actions.
     """
-    def __init__(self, sess, state_dim, action_dim, learning_rate):
+    def __init__(self, sess, state_dim, action_dim, learning_rate ,entropy_weight=EN_W):
         self.sess = sess
         self.s_dim = state_dim
         self.a_dim = action_dim
         self.lr_rate = learning_rate
+        self.ENTROPY_WEIGHT = entropy_weight
 
         # Create the actor network
         self.inputs, self.out = self.create_actor_network()
 
         # Get all network parameters
         self.network_params = \
-            tf.compat.v1.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='actor')
+            tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES, scope='actor')
 
         # Set all network parameters
         self.input_network_params = []
@@ -48,7 +46,7 @@ class ActorNetwork(object):
             tf.compat.v1.log(tf.reduce_sum(tf.compat.v1.multiply(self.out, self.acts),
                                  axis=1, keepdims=True)),
             -self.act_grad_weights)) \
-                   + ENTROPY_WEIGHT * tf.reduce_sum(tf.multiply(self.out,
+                   + self.ENTROPY_WEIGHT * tf.reduce_sum(tf.multiply(self.out,
                                                                 tf.compat.v1.log(self.out + ENTROPY_EPS)))
 
         # Combine the gradients here
@@ -64,8 +62,8 @@ class ActorNetwork(object):
 
             split_0 = tflearn.fully_connected(inputs[:, 0:1, -1], 128, activation='relu')
             split_1 = tflearn.fully_connected(inputs[:, 1:2, -1], 128, activation='relu')
-            split_2 = tflearn.conv_1d(inputs[:, 2:3, :], 128, 4, activation='relu')
-            split_3 = tflearn.conv_1d(inputs[:, 3:4, :], 128, 4, activation='relu')
+            split_2 = tflearn.conv_1d(inputs[:, 2:3, -8:], 128, 4, activation='relu')
+            split_3 = tflearn.conv_1d(inputs[:, 3:4, -8:], 128, 4, activation='relu')
             split_4 = tflearn.conv_1d(inputs[:, 4:5, :A_DIM], 128, 4, activation='relu')
             split_5 = tflearn.fully_connected(inputs[:, 5:6, -1], 128, activation='relu')
 
@@ -73,8 +71,8 @@ class ActorNetwork(object):
             split_3_flat = tflearn.flatten(split_3)
             split_4_flat = tflearn.flatten(split_4)
 
-            merge_net = tflearn.merge([split_0, split_1, split_2_flat, split_3_flat, split_4_flat, split_5], 'concat')
 
+            merge_net = tflearn.merge([split_0, split_1, split_2_flat, split_3_flat, split_4_flat, split_5], 'concat')
             dense_net_0 = tflearn.fully_connected(merge_net, 128, activation='relu')
             out = tflearn.fully_connected(dense_net_0, self.a_dim, activation='softmax')
 
@@ -162,8 +160,8 @@ class CriticNetwork(object):
 
             split_0 = tflearn.fully_connected(inputs[:, 0:1, -1], 128, activation='relu')
             split_1 = tflearn.fully_connected(inputs[:, 1:2, -1], 128, activation='relu')
-            split_2 = tflearn.conv_1d(inputs[:, 2:3, :], 128, 4, activation='relu')
-            split_3 = tflearn.conv_1d(inputs[:, 3:4, :], 128, 4, activation='relu')
+            split_2 = tflearn.conv_1d(inputs[:, 2:3, -8:], 128, 4, activation='relu')
+            split_3 = tflearn.conv_1d(inputs[:, 3:4, -8:], 128, 4, activation='relu')
             split_4 = tflearn.conv_1d(inputs[:, 4:5, :A_DIM], 128, 4, activation='relu')
             split_5 = tflearn.fully_connected(inputs[:, 5:6, -1], 128, activation='relu')
 
@@ -232,7 +230,7 @@ def compute_gradients(s_batch, a_batch, r_batch, terminal, actor, critic):
     if terminal:
         R_batch[-1, 0] = 0  # terminal state
     else:
-        R_batch[-1, 0] = v_batch[-1, 0]  # boot strap from last state
+        R_batch[-1, 0] = v_batch[-1, 0]  #boot strap from last state
 
     for t in reversed(range(ba_size - 1)):
         R_batch[t, 0] = r_batch[t] + GAMMA * R_batch[t + 1, 0]
@@ -284,3 +282,4 @@ def build_summaries():
     summary_ops = tf.compat.v1.summary.merge_all()
 
     return summary_ops, summary_vars
+

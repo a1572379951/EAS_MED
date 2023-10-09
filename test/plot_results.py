@@ -8,15 +8,14 @@ NUM_BINS = 100
 BITS_IN_BYTE = 8.0
 MILLISEC_IN_SEC = 1000.0
 M_IN_B = 1000000.0
-VIDEO_LEN = 48
-VIDEO_BIT_RATE = [300, 750, 1200, 1850, 2850, 4300]
+VIDEO_LEN = 150.0
 K_IN_M = 1000.0
-REBUF_P = 4.3
+REBUF_P = 6.0
 SMOOTH_P = 1
-COLOR_MAP = plt.cm.jet #nipy_spectral, Set1,Paired 
-SIM_DP = 'sim_dp'
+#COLOR_MAP = plt.cm.jet #nipy_spectral, Set1,Paired
+
 #SCHEMES = ['BB', 'RB', 'FIXED', 'FESTIVE', 'BOLA', 'RL',  'sim_rl', SIM_DP]
-SCHEMES = ['sim_rl', SIM_DP]
+SCHEMES = ['sim_mpc','sim_bb','sim_rl']
 
 def main():
 	time_all = {}
@@ -33,6 +32,7 @@ def main():
 		bw_all[scheme] = {}
 
 	log_files = os.listdir(RESULTS_FOLDER)
+
 	for log_file in log_files:
 
 		time_ms = []
@@ -41,62 +41,23 @@ def main():
 		bw = []
 		reward = []
 
-		print(log_file)
+		#print(log_file)
 
 		with open(RESULTS_FOLDER + log_file, 'rb') as f:
-			if SIM_DP in log_file:
-				last_t = 0
-				last_b = 0
-				last_q = 1
-				lines = []
-				for line in f:
-					lines.append(line)
-					parse = line.split()
-					if len(parse) >= 6:
-						time_ms.append(float(parse[3]))
-						bit_rate.append(VIDEO_BIT_RATE[int(parse[6])])
-						buff.append(float(parse[4]))
-						bw.append(float(parse[5]))
-				
-				for line in reversed(lines):
-					parse = line.split()
-					r = 0
-					if len(parse) > 1:
-						t = float(parse[3])
-						b = float(parse[4])
-						q = int(parse[6])
-						if b == 4:
-							rebuff = (t - last_t) - last_b
-							assert rebuff >= -1e-4
-							r -= REBUF_P * rebuff
+			for line in f:
+				parse = line.split()
+				if len(parse) <= 1:
+					break
+				time_ms.append(float(parse[0]))
+				bit_rate.append(int(parse[1]))
+				buff.append(float(parse[2]))
+				bw.append(float(parse[4]) / float(parse[5]) * BITS_IN_BYTE * MILLISEC_IN_SEC / M_IN_B)
+				reward.append(float(parse[6]))
 
-						r += VIDEO_BIT_RATE[q] / K_IN_M
-						r -= SMOOTH_P * np.abs(VIDEO_BIT_RATE[q] - VIDEO_BIT_RATE[last_q]) / K_IN_M
-						reward.append(r)
-
-						last_t = t
-						last_b = b
-						last_q = q
-
-			else:
-				for line in f:
-					parse = line.split()
-					if len(parse) <= 1:
-						break
-					time_ms.append(float(parse[0]))
-					bit_rate.append(int(parse[1]))
-					buff.append(float(parse[2]))
-					bw.append(float(parse[4]) / float(parse[5]) * BITS_IN_BYTE * MILLISEC_IN_SEC / M_IN_B)
-					reward.append(float(parse[6]))
-
-		if SIM_DP in log_file:
-			time_ms = time_ms[::-1]
-			bit_rate = bit_rate[::-1]
-			buff = buff[::-1]
-			bw = bw[::-1]
 		
 		time_ms = np.array(time_ms)
-		time_ms -= time_ms[0]
+		if len(time_ms)>0:
+			time_ms -= time_ms[0]
 		
 		# print log_file
 
@@ -118,12 +79,16 @@ def main():
 	for scheme in SCHEMES:
 		reward_all[scheme] = []
 
+
 	for l in time_all[SCHEMES[0]]:
 		schemes_check = True
+
 		for scheme in SCHEMES:
+
 			if l not in time_all[scheme] or len(time_all[scheme][l]) < VIDEO_LEN:
 				schemes_check = False
 				break
+
 		if schemes_check:
 			log_file_all.append(l)
 			for scheme in SCHEMES:

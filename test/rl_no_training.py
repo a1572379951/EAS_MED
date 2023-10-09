@@ -1,5 +1,4 @@
 import os
-os.environ['CUDA_VISIBLE_DEVICES']=''
 import numpy as np
 import tensorflow as tf
 import fixed_env as env
@@ -9,14 +8,14 @@ import load_trace
 
 S_INFO = 6  # bit_rate, buffer_size, next_chunk_size, bandwidth_measurement(throughput and time), chunk_til_video_end
 S_LEN = 8  # take how many frames in the past
-A_DIM = 6
+A_DIM = 8
 ACTOR_LR_RATE = 0.0001
 CRITIC_LR_RATE = 0.001
-VIDEO_BIT_RATE = [300,750,1200,1850,2850,4300]  # Kbps
+VIDEO_BIT_RATE = [400, 1000, 2000, 3500, 5300, 7500, 9500, 12000]
 BUFFER_NORM_FACTOR = 10.0
 CHUNK_TIL_VIDEO_END_CAP = 48.0
 M_IN_K = 1000.0
-REBUF_PENALTY = 4.3  # 1 sec rebuffering -> 3 Mbps
+REBUF_PENALTY = 6.  # 1 sec rebuffering -> 3 Mbps
 SMOOTH_PENALTY = 1
 DEFAULT_QUALITY = 1  # default video quality without agent
 RANDOM_SEED = 42
@@ -24,7 +23,7 @@ RAND_RANGE = 1000
 SUMMARY_DIR = './results'
 LOG_FILE = './results/log_sim_rl'
 # log in format of time_stamp bit_rate buffer_size rebuffer_time chunk_size download_time reward
-NN_MODEL = './models/pretrain_linear_reward.ckpt'
+NN_MODEL = '../sim/results/nn_model_ep_39100.ckpt'
 
 
 def main():
@@ -42,7 +41,7 @@ def main():
                               all_cooked_bw=all_cooked_bw)
 
     log_path = LOG_FILE + '_' + all_file_names[net_env.trace_idx]
-    log_file = open(log_path, 'wb')
+    log_file = open(log_path, 'w')
 
     with tf.compat.v1.Session() as sess:
 
@@ -100,13 +99,13 @@ def main():
             last_bit_rate = bit_rate
 
             # log time_stamp, bit_rate, buffer_size, reward
-            log_file.write(str(time_stamp / M_IN_K) + '\t' +
+            log_file.write((str(time_stamp / M_IN_K) + '\t' +
                            str(VIDEO_BIT_RATE[bit_rate]) + '\t' +
                            str(buffer_size) + '\t' +
                            str(rebuf) + '\t' +
                            str(video_chunk_size) + '\t' +
                            str(delay) + '\t' +
-                           str(reward) + '\n')
+                           str(reward) + '\n'))
             log_file.flush()
 
             # retrieve previous state

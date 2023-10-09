@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
-import SocketServer
+from http.server import BaseHTTPRequestHandler, HTTPServer
+#import SocketServer
 import base64
 import urllib
 import sys
@@ -38,7 +38,7 @@ def make_request_handler(input_dict):
             content_length = int(self.headers['Content-Length'])
             post_data = json.loads(self.rfile.read(content_length))
             
-            print post_data
+            print (post_data)
             send_data = ""
 
             if ( 'lastquality' in post_data ):
@@ -112,7 +112,7 @@ def run(server_class=HTTPServer, port=8333, log_file_path=LOG_FILE):
 
         server_address = ('localhost', port)
         httpd = server_class(server_address, handler_class)
-        print 'Listening on port ' + str(port)
+        print ('Listening on port ' + str(port))
         httpd.serve_forever()
 
 
